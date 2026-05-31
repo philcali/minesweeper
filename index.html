@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a1a1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Minesweeper">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Minesweeper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #1a1a1a;
+      --bg-surface: #2a2a2a;
+      --cell-hidden: #d4c5a9;
+      --cell-hidden-top: #e0d2b8;
+      --cell-hidden-border: #b8a88a;
+      --cell-revealed: #e8dcc8;
+      --cell-mine: #c44536;
+      --cell-mine-bg: #3d2a26;
+      --cell-flag: #6b8f4e;
+      --accent: #e8a84c;
+      --text: #f0e6d3;
+      --text-dim: #8a7e6b;
+      --cell-number-1: #2563eb;
+      --cell-number-2: #16a34a;
+      --cell-number-3: #dc2626;
+      --cell-number-4: #7c3aed;
+      --cell-number-5: #b91c1c;
+      --cell-number-6: #0891b2;
+      --cell-number-7: #1f2937;
+      --cell-number-8: #4b5563;
+      --cell-size: 38px;
+      --gap: 2px;
+      --board-radius: 8px;
+    }
+
+    @media (max-width: 480px) {
+      :root {
+        --cell-size: 34px;
+      }
+    }
+
+    @media (max-width: 360px) {
+      :root {
+        --cell-size: 30px;
+      }
+    }
+
+    @media (min-width: 768px) {
+      :root {
+        --cell-size: 32px;
+      }
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      max-height: 100vh;
+      height: 100%;
+      justify-content: center;
+    }
+
+    h1 {
+      font-family: 'Press Start 2P', cursive;
+      font-size: clamp(14px, 4vw, 22px);
+      color: var(--accent);
+      letter-spacing: 2px;
+      text-align: center;
+      text-shadow: 0 2px 8px rgba(232, 168, 76, 0.2);
+    }
+
+    /* Difficulty Selector */
+    .difficulty-selector {
+      display: flex;
+      background: var(--bg-surface);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 2px;
+    }
+
+    .difficulty-btn {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-dim);
+      background: transparent;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .difficulty-btn:hover {
+      color: var(--text);
+    }
+
+    .difficulty-btn.active {
+      background: var(--cell-hidden);
+      color: var(--bg);
+      font-weight: 700;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Stats Bar */
+    .stats-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: min(100%, 576px);
+      padding: 8px 4px;
+      gap: 6px;
+    }
+
+    .stat {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: clamp(16px, 4vw, 20px);
+      font-weight: 700;
+      color: var(--text);
+      min-width: 60px;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+
+    .stat.mines {
+      color: var(--cell-mine);
+    }
+
+    .stat.timer {
+      color: var(--accent);
+    }
+
+    .reset-btn {
+      font-size: clamp(22px, 5vw, 28px);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: transform 0.15s ease, background 0.15s ease;
+      line-height: 1;
+    }
+
+    .reset-btn:hover {
+      background: var(--bg-surface);
+    }
+
+    .reset-btn:active {
+      transform: scale(0.9);
+    }
+
+    /* Flag Toggle */
+    .flag-toggle {
+      font-size: clamp(20px, 5vw, 26px);
+      background: none;
+      border: 2px solid transparent;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease;
+      line-height: 1;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .flag-toggle:hover {
+      background: var(--bg-surface);
+    }
+
+    .flag-toggle:active {
+      transform: scale(0.9);
+    }
+
+    .flag-toggle.active {
+      border-color: var(--accent);
+      background: rgba(232, 168, 76, 0.15);
+      animation: toggle-pulse 0.3s ease;
+    }
+
+    @keyframes toggle-pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+
+    /* Board */
+    .board-wrapper {
+      overflow-x: auto;
+      overflow-y: hidden;
+      width: 100%;
+      max-width: min(100%, 576px);
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: var(--text-dim) transparent;
+    }
+
+    .board-wrapper::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .board-wrapper::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .board-wrapper::-webkit-scrollbar-thumb {
+      background: var(--text-dim);
+      border-radius: 2px;
+    }
+
+    .board {
+      display: inline-grid;
+      grid-template-columns: repeat(var(--cols), var(--cell-size));
+      grid-template-rows: repeat(var(--rows), var(--cell-size));
+      gap: var(--gap);
+      background: var(--bg-surface);
+      padding: var(--gap);
+      border-radius: var(--board-radius);
+      touch-action: manipulation;
+      margin: 0 auto;
+    }
+
+    .cell {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 700;
+      font-size: calc(var(--cell-size) * 0.55);
+      transition: background 0.1s ease, transform 0.1s ease;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .cell.hidden {
+      background: var(--cell-hidden);
+      background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='%23d4c5a9'/%3E%3Crect width='1' height='1' fill='%23c8b898' opacity='0.4'/%3E%3C/svg%3E");
+      box-shadow:
+        inset 0 1px 0 var(--cell-hidden-top),
+        inset 0 -1px 0 var(--cell-hidden-border),
+        inset 1px 0 0 var(--cell-hidden-border),
+        inset -1px 0 0 var(--cell-hidden-border),
+        0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .cell.hidden:active {
+      transform: scale(0.95);
+    }
+
+    .cell.revealed {
+      background: var(--cell-revealed);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15);
+      animation: pop 0.15s ease;
+    }
+
+    .cell.flagged {
+      background: var(--cell-hidden);
+      background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='%23d4c5a9'/%3E%3Crect width='1' height='1' fill='%23c8b898' opacity='0.4'/%3E%3C/svg%3E");
+      box-shadow:
+        inset 0 1px 0 var(--cell-hidden-top),
+        inset 0 -1px 0 var(--cell-hidden-border),
+        inset 1px 0 0 var(--cell-hidden-border),
+        inset -1px 0 0 var(--cell-hidden-border),
+        0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .cell.flagged::after {
+      content: '🚩';
+      font-size: calc(var(--cell-size) * 0.5);
+      animation: flag-bounce 0.25s ease;
+    }
+
+    .cell.mine-hit {
+      background: var(--cell-mine) !important;
+      animation: mine-shake 0.4s ease;
+    }
+
+    .cell.mine-revealed {
+      background: var(--cell-mine-bg);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .cell.mine-wrong {
+      background: var(--cell-revealed);
+    }
+
+    .cell.mine-wrong::after {
+      content: '✕';
+      color: var(--cell-mine);
+      font-size: calc(var(--cell-size) * 0.5);
+      font-weight: 700;
+    }
+
+    .cell[data-number="1"] { color: var(--cell-number-1); }
+    .cell[data-number="2"] { color: var(--cell-number-2); }
+    .cell[data-number="3"] { color: var(--cell-number-3); }
+    .cell[data-number="4"] { color: var(--cell-number-4); }
+    .cell[data-number="5"] { color: var(--cell-number-5); }
+    .cell[data-number="6"] { color: var(--cell-number-6); }
+    .cell[data-number="7"] { color: var(--cell-number-7); }
+    .cell[data-number="8"] { color: var(--cell-number-8); }
+
+    /* Flag indicator */
+    .flag-indicator {
+      position: fixed;
+      pointer-events: none;
+      font-size: 20px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 100;
+      transform: translate(-50%, -50%);
+    }
+
+    .flag-indicator.visible {
+      opacity: 1;
+      animation: indicator-pulse 0.5s ease infinite alternate;
+    }
+
+    /* Win overlay */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(26, 26, 26, 0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 200;
+      backdrop-filter: blur(4px);
+    }
+
+    .overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .overlay-text {
+      font-family: 'Press Start 2P', cursive;
+      font-size: clamp(18px, 5vw, 28px);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .overlay-text.win {
+      color: var(--accent);
+      text-shadow: 0 0 20px rgba(232, 168, 76, 0.4);
+    }
+
+    .overlay-text.lose {
+      color: var(--cell-mine);
+      text-shadow: 0 0 20px rgba(196, 69, 54, 0.4);
+    }
+
+    .overlay-stats {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      color: var(--text-dim);
+      text-align: center;
+    }
+
+    .overlay-btn {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 12px;
+      color: var(--bg);
+      background: var(--accent);
+      border: none;
+      padding: 14px 28px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 4px 12px rgba(232, 168, 76, 0.3);
+    }
+
+    .overlay-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(232, 168, 76, 0.4);
+    }
+
+    .overlay-btn:active {
+      transform: translateY(0);
+    }
+
+    /* Animations */
+    @keyframes pop {
+      0% { transform: scale(0.85); }
+      50% { transform: scale(0.95); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes flag-bounce {
+      0% { transform: scale(0) translateY(4px); }
+      60% { transform: scale(1.2) translateY(-2px); }
+      100% { transform: scale(1) translateY(0); }
+    }
+
+    @keyframes mine-shake {
+      0%, 100% { transform: translateX(0); }
+      10% { transform: translateX(-4px) rotate(-2deg); }
+      30% { transform: translateX(4px) rotate(2deg); }
+      50% { transform: translateX(-3px) rotate(-1deg); }
+      70% { transform: translateX(3px) rotate(1deg); }
+      90% { transform: translateX(-1px); }
+    }
+
+    @keyframes indicator-pulse {
+      0% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.6; }
+      100% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+    }
+
+    @keyframes cascade-fade {
+      0% { opacity: 0.5; transform: scale(0.9); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes win-cell-pop {
+      0% { transform: scale(1); }
+      30% { transform: scale(1.15); }
+      60% { transform: scale(0.95); }
+      100% { transform: scale(1); }
+    }
+
+    .cell.win-cell {
+      animation: win-cell-pop 0.4s ease;
+    }
+
+    .cell.cascade {
+      animation: cascade-fade 0.12s ease forwards;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <h1>MINESWEEPER</h1>
+
+    <div class="difficulty-selector">
+      <button class="difficulty-btn active" data-diff="beginner">Beginner</button>
+      <button class="difficulty-btn" data-diff="intermediate">Intermediate</button>
+      <button class="difficulty-btn" data-diff="expert">Expert</button>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat mines" id="mine-count">💣 10</div>
+      <button class="flag-toggle" id="flag-toggle" title="Flag mode">🚩</button>
+      <button class="reset-btn" id="reset-btn">😊</button>
+      <div class="stat timer" id="timer">⏱ 000</div>
+    </div>
+
+    <div class="board-wrapper" id="board-wrapper">
+      <div class="board" id="board"></div>
+    </div>
+  </div>
+
+  <div class="flag-indicator" id="flag-indicator">🚩</div>
+
+  <div class="overlay" id="overlay">
+    <div class="overlay-text" id="overlay-text"></div>
+    <div class="overlay-stats" id="overlay-stats"></div>
+    <button class="overlay-btn" id="overlay-btn">PLAY AGAIN</button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
