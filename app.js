@@ -24,6 +24,7 @@ let touchStartX = 0;
 let touchStartY = 0;
 let touchMoved = false;
 let touchEnded = false;
+let timerFired = false;
 
 // DOM refs
 const boardEl = document.getElementById('board');
@@ -95,10 +96,10 @@ function renderBoard() {
       cell.addEventListener('contextmenu', (e) => e.preventDefault());
 
       // Touch events on individual cells
-      cell.addEventListener('touchstart', onTouchStart, { passive: false });
-      cell.addEventListener('touchmove', onTouchMove, { passive: false });
-      cell.addEventListener('touchend', onTouchEnd, { passive: false });
-      cell.addEventListener('touchcancel', onTouchCancel, { passive: false });
+      cell.addEventListener('touchstart', onTouchStart);
+      cell.addEventListener('touchmove', onTouchMove);
+      cell.addEventListener('touchend', onTouchEnd);
+      cell.addEventListener('touchcancel', onTouchCancel);
 
       boardEl.appendChild(cell);
     }
@@ -190,7 +191,6 @@ function onMouseLeave() {
 
 function onTouchStart(e) {
   if (gameOver) return;
-  e.preventDefault();
 
   const r = parseInt(this.dataset.row);
   const c = parseInt(this.dataset.col);
@@ -198,10 +198,12 @@ function onTouchStart(e) {
   touchStartX = e.touches[0].clientX;
   touchStartY = e.touches[0].clientY;
   touchMoved = false;
+  timerFired = false;
   longPressTarget = { r, c };
 
   longPressTimer = setTimeout(() => {
     if (!flagMode) {
+      timerFired = true;
       toggleFlag(r, c);
       if (navigator.vibrate) navigator.vibrate(30);
     }
@@ -221,23 +223,22 @@ function onTouchMove(e) {
 
 function onTouchEnd(e) {
   if (gameOver) return;
-  e.preventDefault();
   clearTimeout(longPressTimer);
 
-  if (!touchMoved) {
-    const r = parseInt(this.dataset.row);
-    const c = parseInt(this.dataset.col);
-    if (flagMode) {
-      toggleFlag(r, c);
-    } else {
-      handleCellTap(r, c);
-    }
+  e.preventDefault();
+  const r = parseInt(this.dataset.row);
+  const c = parseInt(this.dataset.col);
+  if (flagMode) {
+    toggleFlag(r, c);
+  } else {
+    handleCellTap(r, c);
   }
 }
 
 function onTouchCancel() {
   clearTimeout(longPressTimer);
   touchMoved = false;
+  timerFired = false;
 }
 
 function handleCellTap(r, c) {
